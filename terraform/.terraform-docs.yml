@@ -1,0 +1,57 @@
+content: |-
+  # ALZ.FirewallConfiguration
+
+  This project creates a Firewall Policy within an existing Resource Group (provisioned by ALZ.Bootstrap), which the Azure Firewall (provisioned by ALZ.Connectivity) will then use for its configuration.
+
+  ## Updating Docs
+
+  The `terraform-docs` utility is used to generate this README. Follow the below steps to update:
+  1. Make changes to the `.terraform-docs.yml` file
+  2. Fetch the `terraform-docs` binary (https://terraform-docs.io/user-guide/installation/)
+  3. Run `terraform-docs markdown table --output-file ${PWD}/README.md --output-mode inject terraform/`
+
+  ## Setup
+
+  In order to ease maintenance of Firewall Rule Collections as more services are onboarded and rules expanded, the services are split into three distinct groups:
+  - **"azure":** Any services hosted within Azure and exist within the new ALZ setup will have their IP Groups and Rule Collections defined here.
+  - **"external":** Any services that are entirely external (for example Github, Docker Hub, Microsoft Container Registry, etc) are defined here.
+  - **"onprem":** Any services hosted on the on-premise network are defined here.
+
+  For the latter two (external and onprem) only IP Groups are expected to be defined, which can then be referred to within the Application and Network Rules for other services hosted within Azure.
+
+  ## Updating Rules
+
+  When adding a new service, the following should be done:
+  1. Create a new file for the service within the `settings/<group>` directory (e.g. `settings/azure`), following a naming pattern of `svc_<name>.tf` (e.g. `svc_orca.tf`)
+  2. Define the IP Groups and/or Firewall Rules appropriate for the service, using the group as the prefix for the service, for example:
+    ```hcl
+    {{ include "examples/svc_orca.tf" }}
+    ```
+  3. Modify the `settings/<group>/main.tf` to include the new service in the list, with the group prefix, e.g.:
+    ```hcl
+    {{ include "examples/main.tf" }}
+    ```
+  
+  ## Viewing Logs
+
+  Firewall logs can be analysed by running custom queries against a particular instance, as follows:
+  1. Navigate to the Azure Portal
+  2. Go to `Firewalls`
+  3. Select the Firewall you wish to view logs for
+  4. Under `Monitoring`, select `Logs`
+  5. Either select an example query from the list, or create a new query using the below snippet:
+    ```sql
+    {{ include "examples/FIREWALL_LOG_DATA_QUERY.md" }}
+    ```
+  
+  This query can be modified easily, for example to show only Denied requests remove the comment for `| where Action contains_cs "Deny"`.
+
+  ## Important Notes
+
+  1. Any generic "wildcard" rules or large IP Groups for Azure should be defined in the `settings/azure/svc_defaults.tf` file.
+  2. Priorities must be unique across Services at the top level (Rule Collection Groups). Priorities for individual Application or Network Rule Collections are scoped within its own Rule Collection Group.
+  3. There is currently a fixed upper limit of [100 IP Groups](https://learn.microsoft.com/en-us/azure/azure-resource-manager/management/azure-subscription-service-limits#azure-firewall-limits) that can be associated with a single Firewall, and up to 5000 individual IP addresses or IP prefixes per each IP Group.
+
+  {{ .Inputs }}
+
+  {{ .Outputs }}
